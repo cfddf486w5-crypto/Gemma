@@ -1,6 +1,6 @@
 {
-  "name": "Gemma Neural Link PWA",
-  "description": "Une PWA locale pour discuter avec le modèle Google Gemma 2B via WebLLM.",
+  "name": "Local Neural Link PWA",
+  "description": "Une PWA locale pour discuter avec le modèle Llama 3.2 1B via WebLLM.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -366,7 +366,7 @@
                 <div class="status-dot"></div>
                 <span class="status-text">Local Neural Engine</span>
             </div>
-            <h1>Gemma-2b-it <span style="font-size: 12px; color: #6b7280; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;">v2.0</span></h1>
+            <h1>Gemma-2b-it <span style="font-size: 12px; color: #6b7280; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;">1k Context</span></h1>
         </div>
         <div class="header-right">
             <div class="header-device">iPhone 17 Pro · A19 Bionic</div>
@@ -376,7 +376,7 @@
 
     <div id="progress-container">
         <div class="progress-header">
-            <span class="progress-title">Loading Weights (2.12 GB)</span>
+            <span class="progress-title">Loading Weights (1.4 GB)</span>
             <span id="progress-text">0%</span>
         </div>
         <div id="progress-bar"><div id="progress-fill"></div></div>
@@ -389,14 +389,14 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
             </div>
-            <p class="system-message">Privacy Secure: Gemma is running locally on your device hardware.<br><br>Le modèle IA (~2 Go) sera téléchargé et mis en cache lors du premier message.</p>
+            <p class="system-message">Privacy Secure: Gemma is running locally on your device hardware.<br><br>Le modèle IA (~1.4 Go) sera téléchargé et mis en cache lors du premier message.</p>
         </div>
     </div>
 
     <div id="input-container">
         <div class="input-wrapper">
             <input type="text" id="user-input" placeholder="Demandez n'importe quoi..." disabled>
-            <button id="send-button" disabled>
+            <button id="send-button" type="button" disabled>
                 <svg viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
                 </svg>
@@ -405,7 +405,7 @@
     </div>
 
     <script type="module">
-        import { CreateMLCEngine } from "https://esm.run/@mlc-ai/web-llm";
+        import { CreateMLCEngine, prebuiltAppConfig } from "https://esm.run/@mlc-ai/web-llm";
 
         const chatContainer = document.getElementById('chat-container');
         const userInput = document.getElementById('user-input');
@@ -414,7 +414,9 @@
         const progressText = document.getElementById('progress-text');
         const progressFill = document.getElementById('progress-fill');
 
-        const SELECTED_MODEL = "gemma-2b-it-q4f16_1-MLC";
+        // iOS Safari a des limites de RAM très strictes (même avec 8Go de RAM globale) qui font crasher l'onglet au chargement.
+        // On utilise ici Gemma-2b-it-q4f16_1-MLC-1k, une version limitée à 1024 tokens de contexte pour réduire l'empreinte mémoire et éviter les crashs (OOM).
+        const SELECTED_MODEL = "gemma-2b-it-q4f16_1-MLC-1k";
         
         let engine;
         let isInitializing = false;
@@ -456,14 +458,24 @@
             sendButton.disabled = true;
 
             try {
+                // Initialisation avec IndexedDB pour garantir le stockage permanent
+                // des poids du modèle sur iOS / Safari et éviter le re-téléchargement
                 engine = await CreateMLCEngine(
                     SELECTED_MODEL,
                     {
+                        appConfig: {
+                            ...prebuiltAppConfig,
+                            useIndexedDBCache: false,
+                            cacheBackend: "cache" // Retour au Cache API natif (plus optimisé en RAM que IndexedDB sur iOS)
+                        },
                         initProgressCallback: (progress) => {
                             const percent = Math.round(progress.progress * 100);
                             progressText.textContent = `${percent}%`;
                             progressFill.style.width = `${percent}%`;
                         }
+                    },
+                    {
+                        context_window_size: 1024 // Limite le contexte pour économiser la RAM
                     }
                 );
                 
@@ -543,6 +555,7 @@
         sendButton.addEventListener('click', handleSend);
         userInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
+                e.preventDefault();
                 handleSend();
             }
         });

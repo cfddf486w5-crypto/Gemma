@@ -6,12 +6,12 @@
     <!-- Meta tags pour la PWA iOS (Apple Mobile Web App Capable) -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Gemma AI">
+    <meta name="apple-mobile-web-app-title" content="Llama AI">
     
     <!-- Icône de l'application (optionnelle, utilisez une image 192x192) -->
     <!-- <link rel="apple-touch-icon" href="icon.png"> -->
     
-    <title>Gemma PWA - WebLLM</title>
+    <title>Llama PWA - WebLLM</title>
     
     <style>
         /* ====================================================================
@@ -366,7 +366,7 @@
                 <div class="status-dot"></div>
                 <span class="status-text">Local Neural Engine</span>
             </div>
-            <h1>Gemma-2b-it <span style="font-size: 12px; color: #6b7280; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;">1k Context</span></h1>
+            <h1>Llama-3.2-1B <span style="font-size: 12px; color: #6b7280; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;">Optimized</span></h1>
         </div>
         <div class="header-right">
             <div class="header-device">iPhone 17 Pro · A19 Bionic</div>
@@ -376,7 +376,7 @@
 
     <div id="progress-container">
         <div class="progress-header">
-            <span class="progress-title">Loading Weights (1.4 GB)</span>
+            <span class="progress-title">Loading Weights (~800 MB)</span>
             <span id="progress-text">0%</span>
         </div>
         <div id="progress-bar"><div id="progress-fill"></div></div>
@@ -389,7 +389,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
             </div>
-            <p class="system-message">Privacy Secure: Gemma is running locally on your device hardware.<br><br>Le modèle IA (~1.4 Go) sera téléchargé et mis en cache lors du premier message.</p>
+            <p class="system-message">Privacy Secure: Llama is running locally on your device hardware.<br><br>Le modèle IA (~800 Mo) sera téléchargé et mis en cache lors du premier message.<br><br><i>Note : iOS Safari impose une limite stricte de mémoire par onglet. Des paramètres agressifs ont été activés pour éviter les crashs (OOM).</i></p>
         </div>
     </div>
 
@@ -414,9 +414,9 @@
         const progressText = document.getElementById('progress-text');
         const progressFill = document.getElementById('progress-fill');
 
-        // iOS Safari a des limites de RAM très strictes (même avec 8Go de RAM globale) qui font crasher l'onglet au chargement.
-        // On utilise ici Gemma-2b-it-q4f16_1-MLC-1k, une version limitée à 1024 tokens de contexte pour réduire l'empreinte mémoire et éviter les crashs (OOM).
-        const SELECTED_MODEL = "gemma-2b-it-q4f16_1-MLC-1k";
+        // iOS Safari a des limites de RAM très strictes (OOM - Out of Memory) par onglet (~2Go max), même sur un iPhone 17 avec 8Go.
+        // Llama 3.2 1B (~800 Mo) est beaucoup plus léger que Gemma 2B (~1.4 Go), ce qui évite de saturer la RAM au moment de l'allocation WebGPU.
+        const SELECTED_MODEL = "Llama-3.2-1B-Instruct-q4f16_1-MLC";
         
         let engine;
         let isInitializing = false;
@@ -435,7 +435,7 @@
             
             const meta = document.createElement('span');
             meta.className = 'message-meta';
-            meta.textContent = isUser ? 'You · Sent' : 'Gemma · Just Now';
+            meta.textContent = isUser ? 'You · Sent' : 'Llama · Just Now';
             
             wrapper.appendChild(div);
             wrapper.appendChild(meta);
@@ -475,7 +475,9 @@
                         }
                     },
                     {
-                        context_window_size: 1024 // Limite le contexte pour économiser la RAM
+                        // Paramètres optimisés pour iOS Safari et Llama 1B
+                        context_window_size: 1024, // Limite le cache de contexte pour éviter de gonfler la RAM pendant la discussion
+                        prefill_chunk_size: 256    // Traite les prompts par blocs pour éviter un "GPU Timeout" d'iOS (très fréquent sur mobile)
                     }
                 );
                 

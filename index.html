@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Meta tags pour la PWA iOS (Apple Mobile Web App Capable) -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Gemma AI">
+    
+    <!-- Icône de l'application (optionnelle, utilisez une image 192x192) -->
+    <!-- <link rel="apple-touch-icon" href="icon.png"> -->
+    
+    <title>Gemma PWA - WebLLM</title>
+    
+    <style>
+        /* ====================================================================
+           1. DESIGN SOMBRE ET FUTURISTE (Mobile First) - Atmospheric Theme
+           ==================================================================== */
+        :root {
+            --bg-color: #050505; 
+            --primary-color: #9333ea;
+            --primary-light: #c084fc;
+            --primary-dark: #6b21a8;
+            --text-color: #e5e7eb;
+            --bubble-user: #9333ea;
+            --bubble-ai: #161618;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+            -webkit-tap-highlight-color: transparent; 
+        }
+
+        body, html {
+            height: 100%;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            overscroll-behavior-y: none;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: max(16px, env(safe-area-inset-top)) 24px 16px;
+            border-bottom: 1px solid rgba(88, 28, 135, 0.3);
+            background: rgba(10, 10, 10, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: 1.125rem;
+            font-weight: 500;
+            color: white;
+            text-transform: none;
+            letter-spacing: normal;
+            text-shadow: none;
+            margin-top: 4px;
+        }
+        
+        .header-left {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #a855f7;
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        .status-text {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            font-weight: 700;
+            color: var(--primary-light);
+        }
+        
+        .header-right {
+            text-align: right;
+        }
+        
+        .header-device {
+            font-size: 10px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            color: #6b7280;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        
+        .header-memory {
+            font-size: 10px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            color: var(--primary-light);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+
+        /* ====================================================================
+           2. BARRE DE PROGRESSION VISUELLE
+           ==================================================================== */
+        #progress-container {
+            display: none;
+            padding: 12px 24px;
+            background: #0f0f0f;
+            border-bottom: 1px solid rgba(59, 7, 100, 0.2);
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 8px;
+        }
+
+        .progress-title {
+            font-size: 11px;
+            color: #9ca3af;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+
+        #progress-text {
+            font-size: 11px;
+            color: var(--primary-light);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+
+        #progress-bar {
+            height: 3px;
+            background: #111827;
+            border-radius: 9999px;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        #progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(to right, var(--primary-dark), var(--primary-light));
+            box-shadow: 0 0 8px rgba(168, 85, 247, 0.5);
+            transition: width 0.2s ease-out;
+        }
+
+        /* ====================================================================
+           ZONE DE CHAT AVEC BULLES ÉLÉGANTES
+           ==================================================================== */
+        #chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            scroll-behavior: smooth;
+        }
+        
+        #chat-container::-webkit-scrollbar {
+            width: 4px;
+        }
+        #chat-container::-webkit-scrollbar-track {
+            background: #050505;
+        }
+        #chat-container::-webkit-scrollbar-thumb {
+            background: #1f1f23;
+            border-radius: 10px;
+        }
+
+        .message-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 85%;
+            animation: fadeIn 0.3s ease;
+        }
+        .message-wrapper.user {
+            align-items: flex-end;
+            margin-left: auto;
+        }
+
+        .message {
+            padding: 16px;
+            border-radius: 16px;
+            font-size: 14px;
+            line-height: 1.625;
+            word-wrap: break-word;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .user-message {
+            background-color: var(--bubble-user);
+            border-top-right-radius: 0;
+            color: white;
+            box-shadow: 0 4px 20px rgba(168, 85, 247, 0.2);
+            border: none;
+        }
+
+        .ai-message {
+            background-color: var(--bubble-ai);
+            border: 1px solid #1f2937;
+            border-top-left-radius: 0;
+            color: #d1d5db;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        
+        .message-meta {
+            font-size: 9px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            color: #4b5563;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .system-message-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 32px;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .system-icon {
+            padding: 12px;
+            border-radius: 9999px;
+            background: rgba(88, 28, 135, 0.1);
+            border: 1px solid rgba(168, 85, 247, 0.2);
+            color: var(--primary-light);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .system-message {
+            font-size: 11px;
+            color: #6b7280;
+            text-align: center;
+            max-width: 200px;
+            line-height: 1.625;
+        }
+
+        .streaming-cursor {
+            display: inline-block;
+            width: 4px;
+            height: 16px;
+            margin-left: 4px;
+            background-color: #a855f7;
+            animation: pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            vertical-align: middle;
+        }
+
+        /* ====================================================================
+           BARRE DE SAISIE FIXÉE EN BAS
+           ==================================================================== */
+        #input-container {
+            padding: 0 24px 24px;
+            padding-bottom: max(24px, env(safe-area-inset-bottom));
+            background: transparent;
+        }
+        
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            background: #111;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 24px;
+            padding: 4px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            transition: border-color 0.3s ease;
+        }
+        
+        .input-wrapper:focus-within {
+            border-color: rgba(168, 85, 247, 0.5);
+        }
+
+        input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            padding: 12px 16px;
+            color: white;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        input::placeholder {
+            color: #4b5563;
+        }
+
+        input:disabled {
+            opacity: 0.5;
+        }
+
+        button {
+            background: var(--bubble-user);
+            border: none;
+            border-radius: 16px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: white;
+            transition: background 0.2s, transform 0.2s;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            flex-shrink: 0;
+        }
+
+        button:hover:not(:disabled) {
+            background: #a855f7;
+        }
+
+        button:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+
+        button:disabled {
+            background: #333;
+            box-shadow: none;
+            cursor: not-allowed;
+            color: #666;
+        }
+        
+        button svg {
+            width: 20px;
+            height: 20px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-left">
+            <div class="header-status">
+                <div class="status-dot"></div>
+                <span class="status-text">Local Neural Engine</span>
+            </div>
+            <h1>Gemma-2b-it <span style="font-size: 12px; color: #6b7280; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;">v2.0</span></h1>
+        </div>
+        <div class="header-right">
+            <div class="header-device">iPhone 17 Pro · A19 Bionic</div>
+            <div class="header-memory">8GB Unified Memory Optimized</div>
+        </div>
+    </header>
+
+    <div id="progress-container">
+        <div class="progress-header">
+            <span class="progress-title">Loading Weights (2.12 GB)</span>
+            <span id="progress-text">0%</span>
+        </div>
+        <div id="progress-bar"><div id="progress-fill"></div></div>
+    </div>
+
+    <div id="chat-container">
+        <div class="system-message-container">
+            <div class="system-icon">
+                <svg style="width: 20px; height: 20px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+            </div>
+            <p class="system-message">Privacy Secure: Gemma is running locally on your device hardware.<br><br>Le modèle IA (~2 Go) sera téléchargé et mis en cache lors du premier message.</p>
+        </div>
+    </div>
+
+    <div id="input-container">
+        <div class="input-wrapper">
+            <input type="text" id="user-input" placeholder="Demandez n'importe quoi..." disabled>
+            <button id="send-button" disabled>
+                <svg viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { CreateMLCEngine } from "https://esm.run/@mlc-ai/web-llm";
+
+        const chatContainer = document.getElementById('chat-container');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const progressContainer = document.getElementById('progress-container');
+        const progressText = document.getElementById('progress-text');
+        const progressFill = document.getElementById('progress-fill');
+
+        const SELECTED_MODEL = "gemma-2b-it-q4f16_1-MLC";
+        
+        let engine;
+        let isInitializing = false;
+        
+        const messages = [
+            { role: "system", content: "Tu es un assistant IA local intelligent, concis et serviable. Tu réponds toujours en français." }
+        ];
+
+        function addMessage(text, isUser = false) {
+            const wrapper = document.createElement('div');
+            wrapper.className = `message-wrapper ${isUser ? 'user' : 'ai'}`;
+            
+            const div = document.createElement('div');
+            div.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
+            div.innerHTML = text.replace(/\n/g, '<br>');
+            
+            const meta = document.createElement('span');
+            meta.className = 'message-meta';
+            meta.textContent = isUser ? 'You · Sent' : 'Gemma · Just Now';
+            
+            wrapper.appendChild(div);
+            wrapper.appendChild(meta);
+            
+            chatContainer.appendChild(wrapper);
+            scrollToBottom();
+            return div; // On retourne la div interne pour pouvoir la mettre à jour en direct (streaming)
+        }
+
+        function scrollToBottom() {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        async function initializeAI() {
+            if (engine || isInitializing) return;
+            isInitializing = true;
+            
+            progressContainer.style.display = 'block';
+            userInput.disabled = true;
+            sendButton.disabled = true;
+
+            try {
+                engine = await CreateMLCEngine(
+                    SELECTED_MODEL,
+                    {
+                        initProgressCallback: (progress) => {
+                            const percent = Math.round(progress.progress * 100);
+                            progressText.textContent = `${percent}%`;
+                            progressFill.style.width = `${percent}%`;
+                        }
+                    }
+                );
+                
+                progressContainer.style.display = 'none';
+                userInput.disabled = false;
+                sendButton.disabled = false;
+                userInput.focus();
+                
+                const sysMsgContainer = document.createElement('div');
+                sysMsgContainer.className = 'system-message-container';
+                sysMsgContainer.style.marginBottom = '0';
+                
+                const sysMsgText = document.createElement('p');
+                sysMsgText.className = 'system-message';
+                sysMsgText.textContent = "Téléchargement terminé. Neural Engine connecté.";
+                
+                sysMsgContainer.appendChild(sysMsgText);
+                chatContainer.appendChild(sysMsgContainer);
+                scrollToBottom();
+
+            } catch (error) {
+                console.error("Erreur d'initialisation:", error);
+                progressText.textContent = "Erreur WebGPU";
+                progressText.style.color = "#ff4444";
+                progressFill.style.background = "#ff4444";
+            }
+        }
+
+        async function handleSend() {
+            const text = userInput.value.trim();
+            if (!text) return;
+
+            if (!engine) {
+                await initializeAI();
+                if (!engine) return;
+            }
+
+            addMessage(text, true);
+            userInput.value = '';
+            userInput.disabled = true;
+            sendButton.disabled = true;
+
+            messages.push({ role: "user", content: text });
+
+            const responseElement = addMessage("", false);
+            let fullResponse = "";
+
+            try {
+                const chunks = await engine.chat.completions.create({
+                    messages: messages,
+                    stream: true,
+                    temperature: 0.7,
+                });
+
+                for await (const chunk of chunks) {
+                    const delta = chunk.choices[0]?.delta?.content || "";
+                    fullResponse += delta;
+                    // Add the streaming cursor
+                    responseElement.innerHTML = fullResponse.replace(/\n/g, '<br>') + '<span class="streaming-cursor"></span>'; 
+                    scrollToBottom();
+                }
+
+                // Remove the cursor once done
+                responseElement.innerHTML = fullResponse.replace(/\n/g, '<br>');
+                messages.push({ role: "assistant", content: fullResponse });
+
+            } catch (error) {
+                console.error(error);
+                responseElement.innerHTML = "<em>Erreur de génération. Vérifiez la mémoire.</em>";
+            } finally {
+                userInput.disabled = false;
+                sendButton.disabled = false;
+                userInput.focus();
+            }
+        }
+
+        sendButton.addEventListener('click', handleSend);
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleSend();
+            }
+        });
+
+        userInput.disabled = false;
+        sendButton.disabled = false;
+    </script>
+</body>
+</html>

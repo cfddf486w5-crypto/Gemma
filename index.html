@@ -13,6 +13,13 @@
     
     <title>Llama PWA - WebLLM</title>
     
+    <!-- Améliorations: Markdown & Sécurité -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
+    <!-- Amélioration: Syntax Highlighting -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github-dark.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/highlight.min.js"></script>
+    
     <style>
         /* ====================================================================
            1. DESIGN SOMBRE ET FUTURISTE (Mobile First) - Atmospheric Theme
@@ -204,7 +211,74 @@
             font-size: 14px;
             line-height: 1.625;
             word-wrap: break-word;
+            overflow-x: auto;
         }
+
+        /* Amélioration: Styles Markdown (Prose) */
+        .message-content p { margin-bottom: 0.75em; }
+        .message-content p:last-child { margin-bottom: 0; }
+        /* Amélioration: Code Block Copy Button */
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #1a1a1a;
+            padding: 8px 12px;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-bottom: none;
+            margin-top: 8px;
+        }
+        .code-lang {
+            font-size: 10px;
+            color: #9ca3af;
+            text-transform: uppercase;
+            font-family: ui-monospace, SFMono-Regular, monospace;
+        }
+        .code-copy-btn {
+            background: transparent;
+            border: none;
+            color: #9ca3af;
+            font-size: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .code-copy-btn:hover { color: white; }
+        
+        .message-content pre {
+            background: #0d0d0d;
+            padding: 12px;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+            border-top-left-radius: 0;
+            border-top-right-radius: 0;
+            overflow-x: auto;
+            margin: 0 0 8px 0;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .message-content code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 12px;
+            background: rgba(255,255,255,0.1);
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+        .message-content pre code {
+            background: transparent;
+            padding: 0;
+        }
+        .message-content ul, .message-content ol {
+            margin: 8px 0 8px 24px;
+        }
+        .message-content li { margin-bottom: 4px; }
+        .message-content a { color: var(--primary-light); text-decoration: none; }
+        .message-content a:hover { text-decoration: underline; }
+        .message-content table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+        .message-content th, .message-content td { border: 1px solid rgba(255,255,255,0.2); padding: 8px; text-align: left; }
+        .message-content th { background: rgba(255,255,255,0.05); }
 
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
@@ -233,6 +307,39 @@
             color: #4b5563;
             text-transform: uppercase;
             letter-spacing: 0.1em;
+        }
+
+        button.copy-btn {
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            color: #6b7280;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 4px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-left: 12px;
+            transition: color 0.2s;
+            padding: 0;
+            box-shadow: none;
+        }
+        button.copy-btn:hover:not(:disabled) {
+            color: var(--primary-light);
+            background: transparent;
+        }
+        button.copy-btn:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+        button.copy-btn svg {
+            width: 14px;
+            height: 14px;
+            stroke: currentColor;
+            fill: none;
         }
 
         .system-message-container {
@@ -298,7 +405,8 @@
             border-color: rgba(168, 85, 247, 0.5);
         }
 
-        input {
+        /* Amélioration: Textarea Auto-resize */
+        textarea#user-input {
             flex: 1;
             background: transparent;
             border: none;
@@ -306,17 +414,63 @@
             padding: 12px 16px;
             color: white;
             font-size: 14px;
-            transition: all 0.3s ease;
+            resize: none;
+            min-height: 44px;
+            max-height: 120px;
+            line-height: 1.5;
+            transition: height 0.2s ease;
         }
 
-        input::placeholder {
+        textarea#user-input::placeholder {
             color: #4b5563;
         }
 
-        input:disabled {
-            opacity: 0.5;
+        /* Amélioration: Voice & Stop Buttons */
+        .input-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-right: 4px;
         }
 
+        .action-btn {
+            background: transparent;
+            border: none;
+            color: #9ca3af;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .action-btn:hover:not(:disabled) { background: rgba(255,255,255,0.1); color: white; }
+        .action-btn.active { color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+        .action-btn.recording { animation: pulse-red 1.5s infinite; color: #ef4444; }
+        .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        #stop-button {
+            display: none;
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+        #stop-button:hover { background: #ef4444; color: white; }
+
+        .stats-text {
+            font-size: 10px;
+            color: #6b7280;
+            margin-left: 8px;
+            font-family: ui-monospace, SFMono-Regular, monospace;
+        }
+        
         button {
             background: var(--bubble-user);
             border: none;
@@ -356,6 +510,128 @@
             stroke-linecap: round;
             stroke-linejoin: round;
         }
+
+        /* ====================================================================
+           UTILISATION DU CONTEXTE (TOKENS)
+           ==================================================================== */
+        .context-usage-box {
+            margin-top: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 0 8px;
+        }
+
+        .context-usage-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: #9ca3af;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+
+        .context-usage-title {
+            font-size: 10px;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .context-usage-text {
+            font-size: 10px;
+            color: #9ca3af;
+        }
+
+        .context-bar-container {
+            height: 3px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 9999px;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .context-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--primary-light);
+            border-radius: 9999px;
+            transition: width 0.3s ease, background-color 0.3s ease;
+        }
+
+        .context-bar-fill.warning {
+            background: #f59e0b; /* Orange pour > 70% d'utilisation */
+        }
+
+        .context-bar-fill.danger {
+            background: #ef4444; /* Rouge pour > 90% d'utilisation */
+        }
+
+        /* ====================================================================
+           MODAL & PARAMÈTRES (Connaissances & Éducation)
+           ==================================================================== */
+        .icon-btn {
+            background: transparent; border: none; color: #9ca3af; cursor: pointer; padding: 6px;
+            transition: color 0.2s, background 0.2s; border-radius: 12px; display: flex; align-items: center;
+        }
+        .icon-btn:hover { color: var(--primary-light); background: rgba(255,255,255,0.05); }
+
+        #settings-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 50;
+            display: none; align-items: center; justify-content: center; padding: 24px;
+            opacity: 0; transition: opacity 0.3s ease;
+        }
+        #settings-overlay.show { display: flex; opacity: 1; }
+        
+        #settings-panel {
+            background: #111; border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 24px;
+            padding: 24px; width: 100%; max-width: 450px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            display: flex; flex-direction: column; gap: 16px; transform: scale(0.95); transition: transform 0.3s ease;
+        }
+        #settings-overlay.show #settings-panel { transform: scale(1); }
+        #settings-panel h2 { font-size: 1.125rem; color: white; font-weight: 500; margin-bottom: 4px; }
+        
+        #system-prompt-input {
+            width: 100%; height: 140px; background: #050505; border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px; padding: 16px; color: #e5e7eb; font-size: 14px;
+            resize: none; outline: none; transition: border-color 0.3s, box-shadow 0.3s; line-height: 1.5;
+        }
+        #system-prompt-input:focus { border-color: rgba(168, 85, 247, 0.5); box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.1); }
+        
+        .settings-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px; }
+        .btn-secondary { background: transparent; border: 1px solid #333; color: white; border-radius: 99px; padding: 10px 20px; font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+        .btn-secondary:hover { background: #222; }
+        .btn-primary { background: var(--bubble-user); border: none; color: white; border-radius: 99px; padding: 10px 20px; font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.2s, box-shadow 0.2s; box-shadow: 0 4px 14px rgba(168, 85, 247, 0.3); }
+        .btn-primary:hover { background: #a855f7; box-shadow: 0 6px 20px rgba(168, 85, 247, 0.4); }
+
+        /* Amélioration: Bouton Scroll Bottom */
+        #scroll-bottom-btn {
+            position: fixed;
+            bottom: 90px;
+            right: 24px;
+            background: rgba(10, 10, 10, 0.8);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 20;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s, transform 0.2s;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        #scroll-bottom-btn.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        #scroll-bottom-btn:hover { background: #1a1a1a; transform: scale(1.05); }
     </style>
 </head>
 <body>
@@ -366,11 +642,33 @@
                 <div class="status-dot"></div>
                 <span class="status-text">Local Neural Engine</span>
             </div>
-            <h1>Llama-3.2-1B <span style="font-size: 12px; color: #6b7280; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;">Optimized</span></h1>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <h1><span id="model-title-text">Llama-3.2-1B</span> <span style="font-size: 12px; color: #6b7280; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;">Optimized</span></h1>
+                <button id="open-settings-btn" class="icon-btn" aria-label="Éduquer l'IA">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                </button>
+            </div>
         </div>
-        <div class="header-right">
-            <div class="header-device">iPhone 17 Pro · A19 Bionic</div>
-            <div class="header-memory">8GB Unified Memory Optimized</div>
+        <div class="header-right" style="display: flex; align-items: center; gap: 8px;">
+            <div style="text-align: right; margin-right: 8px;">
+                <div class="header-device">iPhone 17 Pro · A19 Bionic</div>
+                <div class="header-memory">8GB Unified Memory Optimized</div>
+            </div>
+            <!-- Amélioration: Bouton Exporter -->
+            <button id="export-chat-btn" class="icon-btn" aria-label="Exporter le chat" title="Exporter en Markdown">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+            </button>
+            <!-- Amélioration: Bouton Effacer l'historique -->
+            <button id="clear-chat-btn" class="icon-btn" aria-label="Effacer le chat" title="Effacer" style="background: rgba(255,0,0,0.1); color: #ef4444;">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+            </button>
         </div>
     </header>
 
@@ -394,13 +692,72 @@
     </div>
 
     <div id="input-container">
+        <!-- Amélioration: Scroll Bottom Button -->
+        <div id="scroll-bottom-btn" aria-label="Défiler vers le bas">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+        </div>
         <div class="input-wrapper">
-            <input type="text" id="user-input" placeholder="Demandez n'importe quoi..." disabled>
-            <button id="send-button" type="button" disabled>
-                <svg viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                </svg>
-            </button>
+            <!-- Amélioration: Textarea Auto-resize -->
+            <textarea id="user-input" placeholder="Demandez n'importe quoi..." disabled rows="1"></textarea>
+            
+            <div class="input-actions">
+                <!-- Amélioration: Voice Input -->
+                <button id="voice-btn" class="action-btn" type="button" aria-label="Dictée vocale" disabled>
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z"></path></svg>
+                </button>
+
+                <!-- Amélioration: Stop Generation -->
+                <button id="stop-button" class="action-btn" type="button" aria-label="Arrêter la génération">
+                    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"></rect></svg>
+                </button>
+
+                <button id="send-button" type="button" disabled>
+                    <svg viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Utilisation de la fenêtre de contexte (Tokens) -->
+        <div class="context-usage-box">
+            <div class="context-usage-header">
+                <span class="context-usage-title">Utilisation du Contexte</span>
+                <span id="context-usage-count" class="context-usage-text">0 / 4096 tokens (0%)</span>
+            </div>
+            <div class="context-bar-container">
+                <div id="context-progress-fill" class="context-bar-fill"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="settings-overlay">
+        <div id="settings-panel">
+            <div>
+                <h2>Paramètres de l'IA</h2>
+                <p style="font-size: 12px; color: #9ca3af; margin-bottom: 16px; line-height: 1.5;">Changez le modèle ou définissez la personnalité de l'IA. Appliquer effacera la discussion en cours si le modèle ou le contexte change.</p>
+            </div>
+            
+            <div>
+                <h3 style="font-size: 13px; color: #e5e7eb; margin-bottom: 8px;">Modèle IA</h3>
+                <select id="model-select" style="width: 100%; background: #050505; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 12px; color: white; font-size: 14px; outline: none; margin-bottom: 16px; cursor: pointer;">
+                    <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama 3.2 (1B) - Rapide & Léger</option>
+                    <option value="Llama-3.2-3B-Instruct-q4f16_1-MLC">Llama 3.2 (3B) - Équilibré</option>
+                    <option value="gemma-2-2b-it-q4f16_1-MLC">Gemma 2 (2B) - Spécialisé</option>
+                    <option value="Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Qwen 2.5 (1.5B) - Rapide</option>
+                    <option value="Phi-3.5-mini-instruct-q4f16_1-MLC">Phi-3.5 Mini - Performant</option>
+                </select>
+            </div>
+
+            <div>
+                <h3 style="font-size: 13px; color: #e5e7eb; margin-bottom: 8px;">Contexte & Connaissances</h3>
+                <textarea id="system-prompt-input" placeholder="Ex: Tu es un expert en développement web..."></textarea>
+            </div>
+            
+            <div class="settings-actions">
+                <button id="cancel-settings-btn" class="btn-secondary">Annuler</button>
+                <button id="save-settings-btn" class="btn-primary">Appliquer & Reset</button>
+            </div>
         </div>
     </div>
 
@@ -410,35 +767,408 @@
         const chatContainer = document.getElementById('chat-container');
         const userInput = document.getElementById('user-input');
         const sendButton = document.getElementById('send-button');
+        const voiceBtn = document.getElementById('voice-btn');
+        const stopButton = document.getElementById('stop-button');
         const progressContainer = document.getElementById('progress-container');
         const progressText = document.getElementById('progress-text');
         const progressFill = document.getElementById('progress-fill');
 
+        const settingsOverlay = document.getElementById('settings-overlay');
+        const openSettingsBtn = document.getElementById('open-settings-btn');
+        const cancelSettingsBtn = document.getElementById('cancel-settings-btn');
+        const saveSettingsBtn = document.getElementById('save-settings-btn');
+        const systemPromptInput = document.getElementById('system-prompt-input');
+        const modelSelect = document.getElementById('model-select');
+        const modelTitleText = document.getElementById('model-title-text');
+        const clearChatBtn = document.getElementById('clear-chat-btn');
+        const exportChatBtn = document.getElementById('export-chat-btn');
+        const scrollBottomBtn = document.getElementById('scroll-bottom-btn');
+        const contextUsageCount = document.getElementById('context-usage-count');
+        const contextProgressFill = document.getElementById('context-progress-fill');
+
+        // Amélioration: Renderer personnalisé pour ajouter le bouton de copie aux blocs de code
+        const renderer = new marked.Renderer();
+        renderer.code = function(code, language) {
+            const lang = (language || '').match(/\S*/)[0];
+            const validLang = !!(lang && hljs.getLanguage(lang));
+            const highlighted = validLang ? hljs.highlight(code, { language: lang }).value : hljs.highlightAuto(code).value;
+            const langText = validLang ? lang : 'code';
+            
+            // Échapper le code pour l'attribut HTML
+            const escapedCode = code.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            
+            return `
+                <div class="code-header">
+                    <span class="code-lang">${langText}</span>
+                    <button class="code-copy-btn" onclick="navigator.clipboard.writeText(this.getAttribute('data-code')); this.innerHTML='<span>Copié!</span>'; setTimeout(()=>this.innerHTML='<span>Copier</span>', 2000);" data-code="${escapedCode}">
+                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                        <span>Copier</span>
+                    </button>
+                </div>
+                <pre><code class="hljs ${langText}">${highlighted}</code></pre>
+            `;
+        };
+
+        // Amélioration: Configuration Markdown & Syntax Highlighting
+        marked.setOptions({
+            renderer: renderer,
+            breaks: true
+        });
+
         // iOS Safari a des limites de RAM très strictes (OOM - Out of Memory) par onglet (~2Go max), même sur un iPhone 17 avec 8Go.
         // Llama 3.2 1B (~800 Mo) est beaucoup plus léger que Gemma 2B (~1.4 Go), ce qui évite de saturer la RAM au moment de l'allocation WebGPU.
-        const SELECTED_MODEL = "Llama-3.2-1B-Instruct-q4f16_1-MLC";
+        let currentModel = localStorage.getItem('selectedModel') || "Llama-3.2-1B-Instruct-q4f16_1-MLC";
+        modelSelect.value = currentModel;
+        
+        // Update header title based on model
+        function updateModelTitle(modelId) {
+            let title = modelId;
+            const option = modelSelect.querySelector(`option[value="${modelId}"]`);
+            if (option) {
+                title = option.textContent.split(' - ')[0]; // Prends seulement la première partie
+            }
+            modelTitleText.textContent = title;
+        }
+        updateModelTitle(currentModel);
         
         let engine;
         let isInitializing = false;
+        let abortGeneration = false;
         
-        const messages = [
-            { role: "system", content: "Tu es un assistant IA local intelligent, concis et serviable. Tu réponds toujours en français." }
+        let currentSystemPrompt = localStorage.getItem('systemPrompt') || "Tu es un assistant IA local intelligent, concis et serviable. Tu réponds toujours en français.";
+        systemPromptInput.value = currentSystemPrompt;
+
+        let messages = [
+            { role: "system", content: currentSystemPrompt }
         ];
 
-        function addMessage(text, isUser = false) {
+        // Estimation et mise à jour de l'utilisation de la fenêtre de contexte
+        function estimateTokens(text) {
+            if (!text) return 0;
+            // Un token fait environ 3.6 caractères en français / anglais mélangé
+            return Math.ceil(text.length / 3.6);
+        }
+
+        function updateContextUsage(currentStreamingResponse = "") {
+            if (!contextUsageCount || !contextProgressFill) return;
+            
+            let totalTokens = 0;
+            messages.forEach(msg => {
+                totalTokens += estimateTokens(msg.content);
+            });
+            
+            // Ajouter les tokens en cours de saisie par l'utilisateur
+            totalTokens += estimateTokens(userInput.value);
+            
+            // Ajouter les tokens de la réponse en cours de génération si applicable
+            if (currentStreamingResponse) {
+                totalTokens += estimateTokens(currentStreamingResponse);
+            }
+            
+            const maxTokens = 4096;
+            const percentage = Math.min(100, Math.round((totalTokens / maxTokens) * 100));
+            
+            contextUsageCount.textContent = `${totalTokens} / ${maxTokens} tokens (${percentage}%)`;
+            contextProgressFill.style.width = `${percentage}%`;
+            
+            // Changer la couleur selon l'utilisation
+            contextProgressFill.classList.remove('warning', 'danger');
+            if (percentage > 90) {
+                contextProgressFill.classList.add('danger');
+            } else if (percentage > 70) {
+                contextProgressFill.classList.add('warning');
+            }
+        }
+
+        // Amélioration: Sauvegarde de l'historique
+        function saveHistory() {
+            localStorage.setItem('chatHistory', JSON.stringify(messages));
+            localStorage.setItem('systemPrompt', currentSystemPrompt);
+            localStorage.setItem('selectedModel', currentModel);
+            updateContextUsage();
+        }
+
+        function loadHistory() {
+            const saved = localStorage.getItem('chatHistory');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    if (parsed.length > 0) {
+                        messages = parsed;
+                        
+                        // Enlever le message initial de téléchargement si l'historique est chargé
+                        const initMsg = document.querySelector('.system-message-container');
+                        if (initMsg) initMsg.style.display = 'none';
+
+                        // Rendre les messages
+                        messages.forEach(msg => {
+                            if (msg.role !== 'system') {
+                                addMessage(msg.content, msg.role === 'user', false);
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.error("Erreur lecture historique", e);
+                }
+            }
+            updateContextUsage();
+        }
+
+        // --- Logique du panneau de configuration ---
+        openSettingsBtn.addEventListener('click', () => { settingsOverlay.classList.add('show'); });
+        cancelSettingsBtn.addEventListener('click', () => { settingsOverlay.classList.remove('show'); systemPromptInput.value = currentSystemPrompt; });
+        saveSettingsBtn.addEventListener('click', () => {
+            const newPrompt = systemPromptInput.value.trim();
+            const newModel = modelSelect.value;
+            let needsReset = false;
+            let modelChanged = false;
+
+            if (newPrompt && newPrompt !== currentSystemPrompt) {
+                currentSystemPrompt = newPrompt;
+                needsReset = true;
+            }
+            
+            if (newModel !== currentModel) {
+                currentModel = newModel;
+                updateModelTitle(currentModel);
+                modelChanged = true;
+                needsReset = true;
+            }
+
+            if (needsReset) {
+                // Reset de la mémoire et ré-injection des nouvelles règles
+                messages.length = 0;
+                messages.push({ role: "system", content: currentSystemPrompt });
+                saveHistory();
+                
+                // Nettoyage de l'interface (supprime tous les anciens messages)
+                const wrappers = chatContainer.querySelectorAll('.message-wrapper');
+                wrappers.forEach(w => w.remove());
+                
+                if (modelChanged && engine) {
+                    // Forcer la réinitialisation de l'engin avec le nouveau modèle
+                    engine = null;
+                    const initMsg = document.querySelector('.system-message-container');
+                    if (initMsg) initMsg.style.display = 'flex'; // Afficher le message d'initialisation
+                }
+
+                // Ajout d'une notification visuelle
+                const sysMsgContainer = document.createElement('div');
+                sysMsgContainer.className = 'system-message-container';
+                sysMsgContainer.style.marginBottom = '16px';
+                sysMsgContainer.innerHTML = `<p class="system-message">Paramètres mis à jour avec succès.<br>Mémoire réinitialisée.</p>`;
+                chatContainer.appendChild(sysMsgContainer);
+                scrollToBottom();
+            }
+            
+            settingsOverlay.classList.remove('show');
+        });
+
+        // Amélioration: Clear Chat
+        clearChatBtn.addEventListener('click', () => {
+            if(confirm('Voulez-vous vraiment effacer la conversation ?')) {
+                messages = [{ role: "system", content: currentSystemPrompt }];
+                saveHistory();
+                const wrappers = chatContainer.querySelectorAll('.message-wrapper');
+                wrappers.forEach(w => w.remove());
+                
+                // Show init message again
+                const initMsg = document.querySelector('.system-message-container');
+                if (initMsg) initMsg.style.display = 'flex';
+            }
+        });
+
+        // Amélioration: Export Chat to Markdown
+        exportChatBtn.addEventListener('click', () => {
+            if (messages.length <= 1) return alert("Rien à exporter.");
+            let markdownContent = "# Chat History - Llama AI Local\n\n";
+            messages.forEach(msg => {
+                if (msg.role === 'system') return;
+                const roleName = msg.role === 'user' ? '## Vous' : '## Llama';
+                markdownContent += `${roleName}\n${msg.content}\n\n---\n\n`;
+            });
+            const blob = new Blob([markdownContent], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `chat-export-${new Date().toISOString().slice(0,10)}.md`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+        // Amélioration: Scroll Bottom Visibility
+        chatContainer.addEventListener('scroll', () => {
+            const distanceFromBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight;
+            if (distanceFromBottom > 150) {
+                scrollBottomBtn.classList.add('visible');
+            } else {
+                scrollBottomBtn.classList.remove('visible');
+            }
+        });
+        scrollBottomBtn.addEventListener('click', scrollToBottom);
+
+        // Amélioration: Textarea Auto-resize
+        userInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+            if (this.value === '') {
+                this.style.height = '44px';
+            }
+            updateContextUsage();
+        });
+
+        // Amélioration: Speech to Text (Reconnaissance vocale)
+        let recognition;
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'fr-FR';
+            recognition.interimResults = true;
+            recognition.continuous = false;
+
+            recognition.onstart = () => {
+                voiceBtn.classList.add('recording');
+                userInput.placeholder = "Écoute en cours...";
+            };
+
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+                let finalTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+                if (finalTranscript) {
+                    userInput.value += (userInput.value ? ' ' : '') + finalTranscript;
+                    userInput.dispatchEvent(new Event('input')); // trigger resize
+                }
+            };
+
+            recognition.onerror = (event) => {
+                console.error("Erreur micro:", event.error);
+                voiceBtn.classList.remove('recording');
+                userInput.placeholder = "Demandez n'importe quoi...";
+            };
+
+            recognition.onend = () => {
+                voiceBtn.classList.remove('recording');
+                userInput.placeholder = "Demandez n'importe quoi...";
+                if (userInput.value.trim().length > 0 && !engine) {
+                    // Pre-init si pas fait
+                }
+            };
+
+            voiceBtn.addEventListener('click', () => {
+                if (voiceBtn.classList.contains('recording')) {
+                    recognition.stop();
+                } else {
+                    recognition.start();
+                }
+            });
+        } else {
+            voiceBtn.style.display = 'none'; // Non supporté
+        }
+
+        // Amélioration: Stop Generation Logic
+        stopButton.addEventListener('click', () => {
+            abortGeneration = true;
+        });
+
+        function renderMarkdown(text) {
+            return DOMPurify.sanitize(marked.parse(text));
+        }
+
+        function addMessage(text, isUser = false, animate = true) {
             const wrapper = document.createElement('div');
             wrapper.className = `message-wrapper ${isUser ? 'user' : 'ai'}`;
+            if (!animate) wrapper.style.animation = 'none';
             
             const div = document.createElement('div');
-            div.className = `message ${isUser ? 'user-message' : 'ai-message'}`;
-            div.innerHTML = text.replace(/\n/g, '<br>');
+            div.className = `message ${isUser ? 'user-message' : 'ai-message'} message-content`;
+            
+            if (isUser) {
+                div.textContent = text; // Plain text pour l'utilisateur
+            } else {
+                div.innerHTML = renderMarkdown(text);
+            }
+            
+            const metaContainer = document.createElement('div');
+            metaContainer.style.display = 'flex';
+            metaContainer.style.alignItems = 'center';
+            metaContainer.style.justifyContent = isUser ? 'flex-end' : 'flex-start';
             
             const meta = document.createElement('span');
             meta.className = 'message-meta';
             meta.textContent = isUser ? 'You · Sent' : 'Llama · Just Now';
+            metaContainer.appendChild(meta);
+            
+            if (!isUser) {
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-btn';
+                copyBtn.innerHTML = `
+                    <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                    <span>Copier texte</span>
+                `;
+                copyBtn.onclick = () => {
+                    // Pour éviter de copier le texte des boutons de code, on clone la div, on supprime les code-header, puis on prend le innerText
+                    const clone = div.cloneNode(true);
+                    const headers = clone.querySelectorAll('.code-header');
+                    headers.forEach(h => h.remove());
+                    const textToCopy = clone.innerText;
+                    
+                    navigator.clipboard.writeText(textToCopy).then(() => {
+                        const span = copyBtn.querySelector('span');
+                        span.textContent = 'Copié !';
+                        copyBtn.style.color = '#10b981'; 
+                        setTimeout(() => {
+                            span.textContent = 'Copier texte';
+                            copyBtn.style.color = '';
+                        }, 2000);
+                    }).catch(err => console.error("Erreur de copie", err));
+                };
+                metaContainer.appendChild(copyBtn);
+
+                // Amélioration: Bouton Régénérer
+                const regenBtn = document.createElement('button');
+                regenBtn.className = 'copy-btn';
+                regenBtn.innerHTML = `
+                    <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    <span>Régénérer</span>
+                `;
+                regenBtn.onclick = () => {
+                    if (isInitializing || engine?.isGenerating) return;
+                    
+                    // Trouver le dernier message user
+                    let lastUserText = "";
+                    for (let i = messages.length - 1; i >= 0; i--) {
+                        if (messages[i].role === 'user') {
+                            lastUserText = messages[i].content;
+                            // Remove all messages after and including this user message
+                            messages.splice(i);
+                            break;
+                        }
+                    }
+                    
+                    if (lastUserText) {
+                        // Supprimer du DOM les bulles
+                        // On supprime la bulle courante (AI) et la précédente (User)
+                        wrapper.previousElementSibling?.remove();
+                        wrapper.remove();
+                        
+                        userInput.value = lastUserText;
+                        handleSend();
+                    }
+                };
+                metaContainer.appendChild(regenBtn);
+            }
             
             wrapper.appendChild(div);
-            wrapper.appendChild(meta);
+            wrapper.appendChild(metaContainer);
             
             chatContainer.appendChild(wrapper);
             scrollToBottom();
@@ -461,7 +1191,7 @@
                 // Initialisation avec IndexedDB pour garantir le stockage permanent
                 // des poids du modèle sur iOS / Safari et éviter le re-téléchargement
                 engine = await CreateMLCEngine(
-                    SELECTED_MODEL,
+                    currentModel,
                     {
                         appConfig: {
                             ...prebuiltAppConfig,
@@ -476,7 +1206,7 @@
                     },
                     {
                         // Paramètres optimisés pour iOS Safari et Llama 1B
-                        context_window_size: 1024, // Limite le cache de contexte pour éviter de gonfler la RAM pendant la discussion
+                        context_window_size: 4096, // Augmenté à 4096 tokens pour une bien meilleure mémoire de la conversation !
                         prefill_chunk_size: 256    // Traite les prompts par blocs pour éviter un "GPU Timeout" d'iOS (très fréquent sur mobile)
                     }
                 );
@@ -484,6 +1214,7 @@
                 progressContainer.style.display = 'none';
                 userInput.disabled = false;
                 sendButton.disabled = false;
+                voiceBtn.disabled = false;
                 userInput.focus();
                 
                 const sysMsgContainer = document.createElement('div');
@@ -503,6 +1234,9 @@
                 progressText.textContent = "Erreur WebGPU";
                 progressText.style.color = "#ff4444";
                 progressFill.style.background = "#ff4444";
+            } finally {
+                isInitializing = false;
+
             }
         }
 
@@ -521,9 +1255,18 @@
             sendButton.disabled = true;
 
             messages.push({ role: "user", content: text });
+            saveHistory();
 
             const responseElement = addMessage("", false);
             let fullResponse = "";
+            let startTime = performance.now();
+            let tokenCount = 0;
+            abortGeneration = false;
+
+            // UI updates for generating state
+            sendButton.style.display = 'none';
+            stopButton.style.display = 'flex';
+            voiceBtn.style.display = 'none';
 
             try {
                 const chunks = await engine.chat.completions.create({
@@ -533,16 +1276,39 @@
                 });
 
                 for await (const chunk of chunks) {
+                    if (abortGeneration) break; // Interrompre la génération
+                    
                     const delta = chunk.choices[0]?.delta?.content || "";
                     fullResponse += delta;
-                    // Add the streaming cursor
-                    responseElement.innerHTML = fullResponse.replace(/\n/g, '<br>') + '<span class="streaming-cursor"></span>'; 
+                    tokenCount++;
+                    
+                    // Utiliser Markdown au lieu des sauts de ligne simples
+                    responseElement.innerHTML = renderMarkdown(fullResponse) + '<span class="streaming-cursor"></span>'; 
                     scrollToBottom();
+                    updateContextUsage(fullResponse);
                 }
 
-                // Remove the cursor once done
-                responseElement.innerHTML = fullResponse.replace(/\n/g, '<br>');
+                // Fin de génération
+                let timeTaken = (performance.now() - startTime) / 1000;
+                let tps = (tokenCount / timeTaken).toFixed(1);
+
+                responseElement.innerHTML = renderMarkdown(fullResponse);
+                
+                // Amélioration: Afficher les stats
+                const metaContainer = responseElement.nextElementSibling;
+                if (metaContainer) {
+                    const statsSpan = document.createElement('span');
+                    statsSpan.className = 'stats-text';
+                    statsSpan.textContent = `· ~${tps} tok/s`;
+                    if(abortGeneration) statsSpan.textContent += ' (Stoppé)';
+                    metaContainer.insertBefore(statsSpan, metaContainer.querySelector('.copy-btn'));
+                }
+
                 messages.push({ role: "assistant", content: fullResponse });
+                saveHistory();
+
+                // Amélioration: Haptic Feedback (Vibration) sur mobile à la fin
+                if (navigator.vibrate) navigator.vibrate(abortGeneration ? 20 : 50);
 
             } catch (error) {
                 console.error(error);
@@ -550,17 +1316,27 @@
             } finally {
                 userInput.disabled = false;
                 sendButton.disabled = false;
+                
+                // Reset UI
+                sendButton.style.display = 'flex';
+                stopButton.style.display = 'none';
+                if(voiceBtn.style.display !== 'none') voiceBtn.style.display = 'flex';
+                
                 userInput.focus();
             }
         }
 
         sendButton.addEventListener('click', handleSend);
-        userInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
+        userInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { // Permet Shift+Enter pour un saut de ligne
                 e.preventDefault();
                 handleSend();
+                userInput.style.height = '44px'; // Reset height
             }
         });
+
+        // Charger l'historique au démarrage
+        loadHistory();
 
         userInput.disabled = false;
         sendButton.disabled = false;
